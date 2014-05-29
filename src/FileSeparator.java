@@ -105,11 +105,13 @@ public class FileSeparator {
 				String[] lines = line.split(configFileSeparator);
 				
 				
-				if(lines.length <= 1 || lines.length >6 ){
+				if(lines.length <= 1 || lines.length >7 ){
 					errorCall(2);
 				}else{
 					
-					String[] config = Arrays.copyOfRange(lines, 1, 5);
+					ArrayList config1 = new ArrayList(Arrays.asList(Arrays.copyOfRange(lines, 1, 5)));
+							config1.add(lines[6]);
+					String[] config = (String[]) config1.toArray();
 					configMap.put(lines[0], config);
 				}	
 			}
@@ -196,7 +198,7 @@ public class FileSeparator {
 				
 				//Normal Data case
 				
-				double value = binToDec(info);
+				double value = binToDec(hexToBin(info));
 				value = configValue(value, ID);
 				
 				String name;
@@ -280,6 +282,22 @@ public class FileSeparator {
 		System.exit(1);
 	}
 	
+	//HEX string to BIN string
+	public static String hexToBin(String hex){
+		
+		String toReturn = "";
+		for(int i=0;i<hex.length();i++){
+			
+			int temp = Integer.parseInt(hex.charAt(i)+"", 16);
+		    String Bin = Integer.toBinaryString(temp);
+			
+		    toReturn = Bin + toReturn;
+			
+		}	
+		
+		return toReturn;
+	
+	}
 	//converts a bitstring to direct integer value in integer format
 	public static int binToDecUnsigned(String bin){
 		
@@ -329,7 +347,7 @@ public class FileSeparator {
 			case 2:
 			case 4:
 				String angleTrueS = input.substring(i,2);
-				double angleTrue = ((double)binToDec(angleTrueS))*
+				double angleTrue = ((double)binToDec(hexToBin(angleTrueS)))*
 						((double)360/(Math.pow(2, 16)));
 				toReturn.add(angleTrue);
 				break;
@@ -337,7 +355,7 @@ public class FileSeparator {
 			case 8:
 			case 10: 
 				String rCS = input.substring(i,2);
-				double rC = ((double)binToDec(rCS)) *
+				double rC = ((double)binToDec(hexToBin(rCS))) *
 						((double)1260/Math.pow(2,16));
 				toReturn.add(rC);
 				break;
@@ -345,7 +363,7 @@ public class FileSeparator {
 			case 14:
 			case 16: 
 				String accelS = input.substring(i,2);
-				double accel = ((double)binToDec(accelS)) *
+				double accel = ((double)binToDec(hexToBin(accelS))) *
 						((double)20/Math.pow(2, 16));
 				toReturn.add(accel);
 				break;
@@ -353,32 +371,32 @@ public class FileSeparator {
 			case 20:
 			case 22:
 				String velS = input.substring(i,2);
-				double vel = ((double)binToDec(velS)) *
+				double vel = ((double)binToDec(hexToBin(velS))) *
 						((double)512/Math.pow(2, 16));
 				toReturn.add(vel);
 				break;
 			case 24:
 			case 28:
 				String longlatS = input.substring(i,4);
-				double longlat = ((double)binToDec(longlatS)) *
+				double longlat = ((double)binToDec(hexToBin(longlatS))) *
 						((double)360/Math.pow(2,32));
 				toReturn.add(longlat);
 				break;
 			case 32: 
 				String altS = input.substring(i,2);
-				double alt = ((double)binToDec(altS)) * 
+				double alt = ((double)binToDec(hexToBin(altS))) * 
 						((double)Math.pow(2,14)/Math.pow(2,16));
 				toReturn.add(alt);
 				break;
 			case 34: 
 				String xRTS = input.substring(i,2);
-				double xRT = ((double)binToDec(xRTS)) *
+				double xRT = ((double)binToDec(hexToBin(xRTS))) *
 						((double)200/Math.pow(2, 16));
 				toReturn.add(xRT);
 				break;
 			case 36: 
 				String timelS = input.substring(i,4);
-				double timel = ((double)binToDecUnsigned(timelS));
+				double timel = ((double)binToDecUnsigned(hexToBin(timelS)));
 				toReturn.add(timel);
 				break;
 			default:
