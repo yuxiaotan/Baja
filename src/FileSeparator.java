@@ -63,12 +63,12 @@ public class FileSeparator {
 				
 				String[] lines = line.split(configFileSeparator);
 				
-				if(lines.length <=1 || lines.length >6 ){
+				if(lines.length <=1){
 					errorCall(2);
 				}else{
 					
 					//if name exists, or not
-					if(lines.length == 6){
+					if(lines.length == 7){
 						nameMap.put(lines[0].trim(), lines[5].trim());
 					}
 					else{
@@ -94,6 +94,7 @@ public class FileSeparator {
 			errorCall(11);
 		
 		try{
+			
 			
 			BufferedReader in = new BufferedReader(new FileReader(key));
 			String line = null;
