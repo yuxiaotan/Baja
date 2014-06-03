@@ -6,6 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.Map.Entry;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -16,9 +17,32 @@ public class FileSeparator {
 	public static Map<String, String> nameMap;	//Maps from ID to Human Name
 	public static Map<String, String[] > configMap; //Maps from ID to rest of Config (Offset,Scalar,Units,HumanName)
 	public static int startTime=0;
-	public static final String xbowID = "1111";
+	public static final String xbowID = "38";
+	public static final String timeID = "5c";
+	public static final String timeID2 = "5C";
 	public static final String dataFileSeparator = ":";
 	public static final String configFileSeparator = "#";
+	public static long time =0;
+	
+	public static void printNameMap(){
+		
+		for(Entry<String, String> entry: nameMap.entrySet()){
+			
+			String key = entry.getKey();
+			String value = entry.getValue();
+			System.out.println(key+" : "+value);
+		}
+	}
+	
+	public static void printConfigMap(){
+		
+		for(Entry<String, String[]> entry: configMap.entrySet()){
+			
+			String key = entry.getKey();
+			String[] value = entry.getValue();
+			System.out.println(key+" : "+value.toString());
+		}
+	}
 	
 	//@display = words to be displayed
 	//Selects a file and returns it; 
@@ -40,7 +64,7 @@ public class FileSeparator {
 	}
 
 	/* ID # Sample Rate # Offset # Scalar # Units # Human Name
-	 *
+	 *  NEW: ID (0)# Sample Rate # Offset(2) # Scalar # Units(4)# Input #Human Name(6)
 	 *
 	 * ID - Mapping
 	 */
@@ -69,7 +93,7 @@ public class FileSeparator {
 					
 					//if name exists, or not
 					if(lines.length == 7){
-						nameMap.put(lines[0].trim(), lines[5].trim());
+						nameMap.put(lines[0].trim(), lines[6].trim());
 					}
 					else{
 						nameMap.put(lines[0].trim(), lines[0].trim());
@@ -109,10 +133,9 @@ public class FileSeparator {
 					errorCall(2);
 				}else{
 					
-					ArrayList config1 = new ArrayList(Arrays.asList(Arrays.copyOfRange(lines, 1, 5)));
-							config1.add(lines[6]);
-					String[] config = (String[]) config1.toArray();
-					configMap.put(lines[0], config);
+					String[] config1 = (Arrays.copyOfRange(lines, 1, 7));
+
+					configMap.put(lines[0].trim(), config1);
 				}	
 			}
 			
@@ -131,30 +154,28 @@ public class FileSeparator {
 		
 		try{
 			BufferedReader reader = new BufferedReader(new FileReader(data));
-			String line = null;
-			line = reader.readLine();
-			startTime = Integer.parseInt(line.trim());
+			String line = reader.readLine();
 
 			// get all files
 			while ((line = reader.readLine()) != null) {
 
-				String[] lines = line.split(dataFileSeparator);
-
-				// If data file has erroneous input
-				if (lines.length >= 3 || lines.length == 0) {
-					errorCall(4);
-				}
-
-				String ID = lines[0];	// Line-Data ID
-				String time = lines[1]; // Line-Data Time
-				String info = lines[2];	// Line-Data Information
+				if(line.length()<=2)
+					continue;
 				
+				String ID = line.substring(0,2);	// Line-Data ID
+				String lineData = line.substring(2);
+				
+				if(ID.equals(timeID) || ID.equals(timeID2)){
+					
+					time = binToDecUnsigned(hexToBin(lineData));
+					continue;
+				}
+					
 				//special xbow case
-				if(ID==xbowID){
+				if(ID.equals(xbowID)){
 					
 					File write; 
 					String name = "xbowData.txt";
-					
 					//Get the xbowDataFile
 					if(filesMap.containsKey(name))
 						write = filesMap.get(name);
@@ -177,7 +198,7 @@ public class FileSeparator {
 						
 						//xbow data gotten and converted
 						ArrayList<Double> convertedData = 
-								xbowValue(info);
+								xbowValue(lineData);
 						
 						//make xbowData into a string to be written
 						for(int i=0;i<convertedData.size();i++)
@@ -187,6 +208,7 @@ public class FileSeparator {
 						output.println(toWrite);
 						
 						output.close();
+						
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -198,8 +220,11 @@ public class FileSeparator {
 				
 				//Normal Data case
 				
-				double value = binToDec(hexToBin(info));
+				double value = binToDec(hexToBin(lineData));
 				value = configValue(value, ID);
+				
+				if(value == -10101010)
+					continue;
 				
 				String name;
 				File write;
@@ -210,6 +235,8 @@ public class FileSeparator {
 				else
 					name = ID;
 
+				name = name.replaceAll(" ", "_");
+				
 				// If we already opened the correct file to write to
 				if (filesMap.containsKey(name))
 					write = filesMap.get(name);
@@ -291,9 +318,14 @@ public class FileSeparator {
 			int temp = Integer.parseInt(hex.charAt(i)+"", 16);
 		    String Bin = Integer.toBinaryString(temp);
 			
-		    toReturn = Bin + toReturn;
+			while(Bin.length() <4)
+				Bin = "0" + Bin;
+			
+		    toReturn = toReturn + Bin;
 			
 		}	
+		
+
 		
 		return toReturn;
 	
@@ -307,12 +339,15 @@ public class FileSeparator {
 	//converts a bitstring to 2's complement value in integer format
 	public static int binToDec(String bin){
 		
+		if(bin.length()<=0)
+			return 0;
+		
 		if(bin.length()<32){
 			
 			int diff = 32 - bin.length();
 			for(int i=0;i<diff;i++){
 				
-				bin = bin.charAt(0)+bin;
+				bin = bin.charAt(i)+bin;
 			}
 			
 		}
@@ -324,8 +359,20 @@ public class FileSeparator {
 	public static double configValue(double input, String ID){
 		
 		String[] config = configMap.get(ID);
-		double offset = Double.parseDouble(config[0]);
-		double scalar = Double.parseDouble(config[1]);
+		if(config == null)
+			return -10101010;
+		
+		double offset, scalar; 
+		
+		if(config[1].trim().equals(""))
+			offset = 0;
+		else
+			offset = Double.parseDouble(config[1]);
+		
+		if(config[2].trim().equals(""))
+			scalar = 1;
+		else
+			scalar = Double.parseDouble(config[2]);
 		return (input-offset)*scalar;
 	}
 	
@@ -346,7 +393,7 @@ public class FileSeparator {
 			case 0:
 			case 2:
 			case 4:
-				String angleTrueS = input.substring(i,2);
+				String angleTrueS = input.substring(i,i+2);
 				double angleTrue = ((double)binToDec(hexToBin(angleTrueS)))*
 						((double)360/(Math.pow(2, 16)));
 				toReturn.add(angleTrue);
@@ -354,7 +401,7 @@ public class FileSeparator {
 			case 6:
 			case 8:
 			case 10: 
-				String rCS = input.substring(i,2);
+				String rCS = input.substring(i,i+2);
 				double rC = ((double)binToDec(hexToBin(rCS))) *
 						((double)1260/Math.pow(2,16));
 				toReturn.add(rC);
@@ -362,7 +409,7 @@ public class FileSeparator {
 			case 12:
 			case 14:
 			case 16: 
-				String accelS = input.substring(i,2);
+				String accelS = input.substring(i,i+2);
 				double accel = ((double)binToDec(hexToBin(accelS))) *
 						((double)20/Math.pow(2, 16));
 				toReturn.add(accel);
@@ -370,32 +417,32 @@ public class FileSeparator {
 			case 18:
 			case 20:
 			case 22:
-				String velS = input.substring(i,2);
+				String velS = input.substring(i,i+2);
 				double vel = ((double)binToDec(hexToBin(velS))) *
 						((double)512/Math.pow(2, 16));
 				toReturn.add(vel);
 				break;
 			case 24:
 			case 28:
-				String longlatS = input.substring(i,4);
+				String longlatS = input.substring(i,i+4);
 				double longlat = ((double)binToDec(hexToBin(longlatS))) *
 						((double)360/Math.pow(2,32));
 				toReturn.add(longlat);
 				break;
 			case 32: 
-				String altS = input.substring(i,2);
+				String altS = input.substring(i,i+2);
 				double alt = ((double)binToDec(hexToBin(altS))) * 
 						((double)Math.pow(2,14)/Math.pow(2,16));
 				toReturn.add(alt);
 				break;
 			case 34: 
-				String xRTS = input.substring(i,2);
+				String xRTS = input.substring(i,i+2);
 				double xRT = ((double)binToDec(hexToBin(xRTS))) *
 						((double)200/Math.pow(2, 16));
 				toReturn.add(xRT);
 				break;
 			case 36: 
-				String timelS = input.substring(i,4);
+				String timelS = input.substring(i,i+4);
 				double timel = ((double)binToDecUnsigned(hexToBin(timelS)));
 				toReturn.add(timel);
 				break;
@@ -421,7 +468,7 @@ public class FileSeparator {
 		
 		if(!data.exists()){
 			JOptionPane.showMessageDialog(null, "data.txt not found. " +
-					"Press enter to manually select config file");
+					"Press enter to manually select data file");
 			data = selectFile("This is my data file");
 		}
 		
